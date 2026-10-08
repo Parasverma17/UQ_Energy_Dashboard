@@ -1,0 +1,4 @@
+/database/
+/database/data/
+**/*.csv
+**/*.xlsx

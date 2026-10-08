@@ -1,0 +1,27 @@
+# Byte-compiled / cache
+__pycache__/
+*.py[cod]
+*.pyo
+
+# Django stuff
+*.log
+db.sqlite3
+
+# Environment files
+*.env
+.env
+
+# Package files
+package-lock.json
+package.json
+FRONTEND/package-lock.json
+FRONTEND/package.json
+
+# Backup
+DECO3801-PowerScope-backup/
+
+#large data files
+/database/data/room51_2024.csv
+/database/data/room51_2025.csv
+/database/data/data1.csv
+/database/data/Meter IDs and Description.xlsx

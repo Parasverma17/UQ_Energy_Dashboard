@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Energy Data</title>
+</head>
+<body>
+    <h1>Energy Data</h1>
+    <table border="1">
+        <tr>
+            <th>ID</th>
+            <th>Building</th>
+            <th>kWh</th>
+            <th>Date</th>
+        </tr>
+        {% for row in rows %}
+        <tr>
+            <td>{{ row.id }}</td>
+            <td>{{ row.building_name }}</td>
+            <td>{{ row.energy_kwh }}</td>
+            <td>{{ row.recorded_on }}</td>
+        </tr>
+        {% endfor %}
+    </table>
+</body>
+</html>

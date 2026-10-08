@@ -1,0 +1,137 @@
+services:
+  # ----------------------------
+  # TimescaleDB (energy data)
+  # ----------------------------
+  timescaledb:
+    image: timescale/timescaledb-ha:pg17
+    container_name: timescaledb
+    env_file: .env
+    ports:
+      - "5424:5432"
+    volumes:
+      - tsdb-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 45s
+    restart: unless-stopped
+
+  db-init:
+    build: 
+      context: ./database/db-init
+      dockerfile: Dockerfile
+    container_name: db-init
+    env_file: .env
+    environment:
+      DB_HOST: timescaledb
+      DB_PORT: "5432" 
+      CSV_PATH: /data/data1.csv 
+    depends_on:
+      timescaledb:
+        condition: service_healthy
+    volumes:
+      - ./database/timescaledb.py:/app/timescaledb.py:ro
+      - ./database/data:/data:ro
+    command: ["python", "/app/timescaledb.py"]
+    restart: "no"
+
+  # ----------------------------
+  # FastAPI (queries TimescaleDB)
+  # ----------------------------
+  fastapi:
+    build:
+      context: .
+      dockerfile: fastapi_app/Dockerfile
+    container_name: fastapi
+    env_file: .env
+    environment:
+       DB_DSN: "${DB_DSN}"
+       QUERY_DIR: /app/queries
+    depends_on:
+      timescaledb:
+        condition: service_healthy
+    ports:
+      - "8001:8001"
+    restart: unless-stopped
+
+  # ----------------------------
+  # Django (uses separate Postgres)
+  # ----------------------------
+  django:
+    build:
+      context: .
+      dockerfile: UQEnergyLens/Dockerfile
+    container_name: django
+    env_file: .env
+    environment:
+       DATABASE_URL: ${DATABASE_URL}
+       DJANGO_SETTINGS_MODULE: ${DJANGO_SETTINGS_MODULE}
+       SECRET_KEY: ${SECRET_KEY}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - staticfiles:/app/staticfiles
+    ports:
+      - "8000:8000"
+    restart: unless-stopped
+
+  postgres:
+    image: postgres:17
+    container_name: postgres
+    environment:
+      POSTGRES_USER: django
+      POSTGRES_PASSWORD: django_password
+      POSTGRES_DB: django_db
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U django -d django_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    restart: unless-stopped
+
+  # ----------------------------
+  # Frontend
+  # ----------------------------
+  frontend:
+    build:
+      context: .
+      dockerfile: FRONTEND/Dockerfile
+    container_name: frontend-build
+    depends_on:
+      - django
+      - fastapi
+    volumes:
+      - frontend-build:/frontend-dist
+    command: ["sh", "-c", "cp -r /tmp/app_build/* /frontend-dist/ && sleep infinity"]
+
+  # ----------------------------
+  # Nginx
+  # ----------------------------
+  nginx:
+    image: nginx:alpine
+    container_name: nginx
+    depends_on:
+      - django
+      - fastapi
+      - frontend
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - staticfiles:/static:ro
+      - frontend-build:/usr/share/nginx/html/app:ro
+    ports:
+      - "8080:80"
+    restart: unless-stopped
+
+volumes:
+  tsdb-data:
+  postgres_data:
+  staticfiles:
+  frontend-build:

@@ -1,0 +1,15 @@
+## First time running it
+
+Open 'Docker Desktop'
+cd ~/DECO3801-PowerScope
+docker compose down -v
+docker compose up -d --build
+docker compose ps
+docker compose exec django python manage.py migrate
+
+
+## After initial run on machine
+Open 'Docker Desktop'
+cd ~/DECO3801-PowerScope
+docker compose up -d
+docker compose exec django python manage.py migrate
